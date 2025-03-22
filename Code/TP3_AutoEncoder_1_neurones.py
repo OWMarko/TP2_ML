@@ -56,7 +56,7 @@ optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LEARNING_RATE)
 for epoch in range(EPOCH):
     for step, (x, _) in enumerate(train_loader):
         inputX = x.view(-1, 28 * 28) 
-        _, decoded = autoencoder(inputX)
+        _, decoded = autoencoder(inputX) #on souhaite avoir que la sortie du décodeur / la reconstruction et pas la représentation latente
 
         
         loss = criterion(decoded, inputX)
