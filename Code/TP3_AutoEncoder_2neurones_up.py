@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import torchvision
 import torch.utils.data as Data
 
-# Acquisition des données
 train_data = torchvision.datasets.MNIST(
     root='./mnist/',
     train=True,
@@ -13,7 +12,6 @@ train_data = torchvision.datasets.MNIST(
     download=True,
 )
 
-#Construction du réseau AutoEncodeur
 class AutoEncoder(nn.Module):
     def __init__(self):
         super(AutoEncoder, self).__init__()
@@ -27,7 +25,7 @@ class AutoEncoder(nn.Module):
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.BatchNorm1d(64),
-            nn.Linear(64, 2)
+            nn.Linear(64, 2)  # Espace latent de dimension 2
         )
         self.decoder = nn.Sequential(
             nn.Linear(2, 64),
@@ -48,38 +46,30 @@ class AutoEncoder(nn.Module):
         decoded = self.decoder(encoded)
         return encoded, decoded
 
-# Chargement des données pour l'entraînement
 BATCH_SIZE = 64
 train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True)
 
-# Configuration du modèle
 EPOCH = 5
 LEARNING_RATE = 0.005
 autoencoder = AutoEncoder()
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LEARNING_RATE)
+losses = []
 
-# Entraînement
-losses = []  # Liste pour stocker les pertes
 for epoch in range(EPOCH):
     epoch_loss = 0
     for step, (x, _) in enumerate(train_loader):
-        inputX = x.view(-1, 28 * 28)  # Transformation en vecteurs (batch_size, 28*28)
-        _, decoded = autoencoder(inputX)  # Encodage et reconstruction
-
-        loss = criterion(decoded, inputX)  # Calcul de la perte
+        inputX = x.view(-1, 28 * 28)  
+        _, decoded = autoencoder(inputX) 
+        loss = criterion(decoded, inputX)  
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
         epoch_loss += loss.item()
-
-    # Moyenne de la perte pour l'époque
     average_loss = epoch_loss / len(train_loader)
     losses.append(average_loss)
     print(f'Epoch [{epoch+1}/{EPOCH}], Loss: {average_loss:.4f}')
 
-# Affichage de la convergence de la fonction coût
 plt.figure(figsize=(8, 6))
 plt.plot(range(1, EPOCH + 1), losses, label='MSE Loss', color='blue')
 plt.title('Convergence de la fonction coût')
@@ -89,14 +79,11 @@ plt.legend()
 plt.grid()
 plt.show()
 
-# Visualisation des résultats
 N_TEST_IMG = 5
 view_data = train_data.data[:N_TEST_IMG].view(-1, 28 * 28).float() / 255.
 
-# Configuration des sous-graphiques
 fig, axes = plt.subplots(2, N_TEST_IMG, figsize=(10, 4))
 
-# Affichage des images originales
 for i in range(N_TEST_IMG):
     original_img = view_data[i].view(28, 28).numpy()
     axes[0, i].imshow(original_img, cmap='gray')
@@ -104,10 +91,9 @@ for i in range(N_TEST_IMG):
     axes[0, i].set_yticks(())
     axes[0, i].set_title(f"Original {i+1}")
 
-# Affichage des images reconstruites
-autoencoder.eval()  # Passer en mode évaluation
+autoencoder.eval()  
 for i in range(N_TEST_IMG):
-    test_img = view_data[i].unsqueeze(0)  # Ajouter une dimension batch
+    test_img = view_data[i].unsqueeze(0) 
     decoded_img = autoencoder(test_img)[1].detach().view(28, 28).numpy()
     axes[1, i].imshow(decoded_img, cmap='gray')
     axes[1, i].set_xticks(())
