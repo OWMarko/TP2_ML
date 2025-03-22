@@ -27,10 +27,10 @@ class AutoEncoder(nn.Module):
         self.encoder = nn.Sequential(
             nn.Linear(28 * 28, 128),  
             nn.Tanh(),               
-            nn.Linear(128, 16)        
+            nn.Linear(128, 2)        
         )
         self.decoder = nn.Sequential(
-            nn.Linear(16, 128),       
+            nn.Linear(2, 128),       
             nn.Tanh(),               
             nn.Linear(128, 28 * 28),
             nn.Sigmoid()             
