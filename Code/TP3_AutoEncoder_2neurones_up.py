@@ -5,100 +5,116 @@ import matplotlib.pyplot as plt
 import torchvision
 import torch.utils.data as Data
 
-DOWNLOAD_MNIST = True
+# Acquisition des données
 train_data = torchvision.datasets.MNIST(
     root='./mnist/',
     train=True,
     transform=torchvision.transforms.ToTensor(),
-    download=DOWNLOAD_MNIST,
+    download=True,
 )
 
-print(train_data.data.size())  
-print(train_data.targets.size()) 
-
-class AutoEncoder(nn.Module):
+# Construction du réseau AutoEncodeur
+class ImprovedAutoEncoder(nn.Module):
     def __init__(self):
-        super(AutoEncoder, self).__init__()
+        super(ImprovedAutoEncoder, self).__init__()
+        # Encodeur
         self.encoder = nn.Sequential(
-            nn.Linear(28 * 28, 128),   
-            nn.BatchNorm1d(128),       
-            nn.Tanh(),                 
-            nn.Linear(128, 64),        
-            nn.BatchNorm1d(64),       
-            nn.Tanh(),                 
-            nn.Linear(64, 2)           
+            nn.Linear(28 * 28, 256),
+            nn.ReLU(),
+            nn.BatchNorm1d(256),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.BatchNorm1d(128),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.BatchNorm1d(64),
+            nn.Linear(64, 2)  # Espace latent de dimension 2
         )
+        # Décodeur
         self.decoder = nn.Sequential(
-            nn.Linear(2, 64),          
-            nn.BatchNorm1d(64),        
-            nn.Tanh(),                 
-            nn.Linear(64, 128),        
-            nn.BatchNorm1d(128),       
-            nn.Tanh(),                 
-            nn.Linear(128, 28 * 28),   
-            nn.Sigmoid()               
+            nn.Linear(2, 64),
+            nn.ReLU(),
+            nn.BatchNorm1d(64),
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.BatchNorm1d(128),
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.BatchNorm1d(256),
+            nn.Linear(256, 28 * 28),
+            nn.Sigmoid()  # Pour ramener les valeurs entre 0 et 1
         )
 
     def forward(self, x):
-        encoded = self.encoder(x)  
-        decoded = self.decoder(encoded)  
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
         return encoded, decoded
 
-#Optimisation
+# Chargement des données pour l'entraînement
 BATCH_SIZE = 64
 train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True)
 
-EPOCH = 100
+# Configuration du modèle
+EPOCH = 5
 LEARNING_RATE = 0.005
-
-autoencoder = AutoEncoder()
-criterion = nn.MSELoss()  
+autoencoder = ImprovedAutoEncoder()
+criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LEARNING_RATE)
 
-
+# Entraînement
+losses = []  # Liste pour stocker les pertes
 for epoch in range(EPOCH):
+    epoch_loss = 0
     for step, (x, _) in enumerate(train_loader):
-        if x.size(0) <= 1:
-            continue
-        inputX = x.view(-1, 28 * 28) 
-        _, decoded = autoencoder(inputX) 
-        loss = criterion(decoded, inputX)
-        optimizer.zero_grad() 
-        loss.backward() 
+        inputX = x.view(-1, 28 * 28)  # Transformation en vecteurs (batch_size, 28*28)
+        _, decoded = autoencoder(inputX)  # Encodage et reconstruction
+
+        loss = criterion(decoded, inputX)  # Calcul de la perte
+        optimizer.zero_grad()
+        loss.backward()
         optimizer.step()
-    
-    print(f'Epoch [{epoch+1}/{EPOCH}], Loss: {loss.item():.4f}')
 
-# Visualisation
-N_TEST_IMG = 10
+        epoch_loss += loss.item()
+
+    # Moyenne de la perte pour l'époque
+    average_loss = epoch_loss / len(train_loader)
+    losses.append(average_loss)
+    print(f'Epoch [{epoch+1}/{EPOCH}], Loss: {average_loss:.4f}')
+
+# Affichage de la convergence de la fonction coût
+plt.figure(figsize=(8, 6))
+plt.plot(range(1, EPOCH + 1), losses, label='MSE Loss', color='blue')
+plt.title('Convergence de la fonction coût')
+plt.xlabel('Époque')
+plt.ylabel('Erreur quadratique moyenne (MSE)')
+plt.legend()
+plt.grid()
+plt.show()
+
+# Visualisation des résultats
+N_TEST_IMG = 5
 view_data = train_data.data[:N_TEST_IMG].view(-1, 28 * 28).float() / 255.
-view_labels = train_data.targets[:N_TEST_IMG]
 
-#Passer en mode évaluation pour éviter les problèmes liés à BatchNorm1d
-autoencoder.eval()
-
+# Configuration des sous-graphiques
 fig, axes = plt.subplots(2, N_TEST_IMG, figsize=(10, 4))
 
+# Affichage des images originales
 for i in range(N_TEST_IMG):
     original_img = view_data[i].view(28, 28).numpy()
-    label = view_labels[i].item()
     axes[0, i].imshow(original_img, cmap='gray')
     axes[0, i].set_xticks(())
     axes[0, i].set_yticks(())
-    axes[0, i].set_title(f"Original {label}")
+    axes[0, i].set_title(f"Original {i+1}")
 
+# Affichage des images reconstruites
+autoencoder.eval()  # Passer en mode évaluation
 for i in range(N_TEST_IMG):
-    test_img = view_data[i].unsqueeze(0)  # Ajouter une dimension pour le batch
+    test_img = view_data[i].unsqueeze(0)  # Ajouter une dimension batch
     decoded_img = autoencoder(test_img)[1].detach().view(28, 28).numpy()
-    label = view_labels[i].item()
     axes[1, i].imshow(decoded_img, cmap='gray')
     axes[1, i].set_xticks(())
     axes[1, i].set_yticks(())
-    axes[1, i].set_title(f"Decoded {label}")
+    axes[1, i].set_title(f"Decoded {i+1}")
 
 plt.tight_layout()
 plt.show()
-
-# Revenir en mode entraînement après la visualisation
-autoencoder.train()
-
