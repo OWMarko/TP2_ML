@@ -13,11 +13,10 @@ train_data = torchvision.datasets.MNIST(
     download=True,
 )
 
-# Construction du réseau AutoEncodeur
-class ImprovedAutoEncoder(nn.Module):
+#Construction du réseau AutoEncodeur
+class AutoEncoder(nn.Module):
     def __init__(self):
-        super(ImprovedAutoEncoder, self).__init__()
-        # Encodeur
+        super(AutoEncoder, self).__init__()
         self.encoder = nn.Sequential(
             nn.Linear(28 * 28, 256),
             nn.ReLU(),
@@ -28,9 +27,8 @@ class ImprovedAutoEncoder(nn.Module):
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.BatchNorm1d(64),
-            nn.Linear(64, 2)  # Espace latent de dimension 2
+            nn.Linear(64, 2)
         )
-        # Décodeur
         self.decoder = nn.Sequential(
             nn.Linear(2, 64),
             nn.ReLU(),
@@ -57,7 +55,7 @@ train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffl
 # Configuration du modèle
 EPOCH = 5
 LEARNING_RATE = 0.005
-autoencoder = ImprovedAutoEncoder()
+autoencoder = AutoEncoder()
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LEARNING_RATE)
 
